@@ -9,7 +9,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     # 1. create config objects
-    configs = load_configs(args.c)
+    configs = load_configs("../configs/", args.c)
 
     # 2. create model
     model = SMILES_hybrid(configs=configs)
