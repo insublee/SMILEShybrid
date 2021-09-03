@@ -1,6 +1,11 @@
 from typing import Dict, List, Union
 import torch
 
+def load_configs(path: str, name: str) -> DictConfig:
+    hydra.initialize(path, name)
+    config = hydra.compose(name)
+    return config
+
 def to(obj: Union[List, Dict, torch.Tensor], device: str):
     """
     Move object to gpu
