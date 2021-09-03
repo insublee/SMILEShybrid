@@ -8,6 +8,7 @@ dgllife
 hydra-core
 transformers
 pytorch-lightning
+torchvision
 datasets
 wandb
 deepspeed
