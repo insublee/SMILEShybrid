@@ -4,7 +4,7 @@
 
 ### use conda env
 ```
-conda create -n SMILEShybrid 
+conda create -n smiles python=3.7
 git clone git@github.com:insublee/SMILEShybrid.git
 cd SMILEShybrid
 pip install -e.
