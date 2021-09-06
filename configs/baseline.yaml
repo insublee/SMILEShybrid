@@ -1,34 +1,32 @@
-project: "climates"
+project: "Samsung AI Challenge for Scientific Discovery"
 
 model: {
-  id: "mlp",
-  type: "MLPClassifier",
-  grid_parm: [{'activation':['logistic', 'tanh', 'relu'],
-    'hidden_layer_sizes':[[256,128,64], [512,256,128,64],[1024,512,256,128,64]],
-    'learning_rate':['constant', 'invscaling'],
-    'learning_rate_init':[0.005, 0.0001, 0.0005],
-  }],
-  search_args: {
-    cv: 3, # k fold cross validation. 
-    scoring: 'f1_macro',
-    verbose: 3,
-    n_jobs: -1, # -1이면 search할때 CPU코어 전부 다쓰는거에요. 
-  },
+  id: "ChemBERTa_decoder(mlp(feature)+resnet50(image), seq)",
+}
+
+train: {
+  lr: 5e-5,
+  weight_decay: 1e-2,
+  train_batch_size: 40,
+  dev_batch_size: 40,
+  test_batch_size: 40,
+  save_path: '../saved',
   args: {
-    activation: "relu",
-    hidden_layer_sizes: [
-      512, 256, 128, 64,
-    ],
-    learning_rate: 'invscaling',
-    learning_rate_init: 0.005,
-  },
+    gpus: 1,
+    precision: 16,
+    accumulate_grad_batches: 1,
+    val_check_interval: 1.0,
+    gradient_clip_val: 1.0,
+    max_steps: 6000,
+  }
 }
 
 data: {
+  max_seq_length: 200,
+  cache_file_name: '../datasets/datasets.pkl',
   train_path: "../datasets/train.csv",
+  dev_path: "../datasets/dev.csv",
   test_path: "../datasets/test.csv",
-  processed_train_path: "../datasets/word_cnt_baseline_train",
-  processed_test_path: "../datasets/word_cnt_baseline_test",
-  sample_path: '../datasets/sample_submission.csv',
-  submission_path: '../saved/mlp_submission.csv',
+  sample_submission_path: "../datasets/sample_submission.csv",
+  submission_path: "../datasets/SMILES_hybrid_submission.csv",
 }

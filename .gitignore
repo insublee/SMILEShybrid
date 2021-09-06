@@ -1,2 +1,6 @@
 pynb_checkpoints/
 datasets/
+lightning_logs/
+wandb/
+saved/
+__pycache__/

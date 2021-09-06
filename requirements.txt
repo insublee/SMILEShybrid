@@ -2,11 +2,13 @@ numpy
 pandas
 scikit-learn
 kora
+rdkit-pypi
 deepchem
 dgl
 dgllife
 hydra-core
 transformers
+tensorflow
 pytorch-lightning
 torchvision
 datasets

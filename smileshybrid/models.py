@@ -2,13 +2,18 @@ import pandas as pd
 import wandb
 
 import torch
-from torch.nn import nn
+from torch import nn
 from torch.utils.data import DataLoader
-from transformers import AutoModel
+from transformers import AutoModel, AutoTokenizer, AdamW, get_cosine_schedule_with_warmup
+from omegaconf import DictConfig
 
+from torchvision import models
 from pytorch_lightning import LightningModule, Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
+
+from smileshybrid.utils import to
+
 
 class CNN_Encoder(nn.Module):
     def __init__(self, embedding_dim):
@@ -69,8 +74,9 @@ class Transformer(nn.Module):
       
       
 class SMILES_hybrid(LightningModule):
-    def __init__(self):
+    def __init__(self, config:DictConfig) -> None:
         super(SMILES_hybrid, self).__init__()
+        self.config = config
         self.transformer = Transformer()
         self.cnn = CNN_Encoder(self.transformer.model.config.hidden_size)
         self.mlp = MLP(2048, self.transformer.model.config.hidden_size)
@@ -78,13 +84,14 @@ class SMILES_hybrid(LightningModule):
         #                    batch_size=10, learning_rate=0.001)
         self.L1Loss = nn.L1Loss()
         self.optimizer = AdamW(params=self.optimized_params(),
-                               lr=5e-5,
-                               weight_decay=1e-2)
+                               lr=self.config.train.lr,
+                               weight_decay=self.config.train.weight_decay)
         self.scheduler = get_cosine_schedule_with_warmup(optimizer= self.optimizer,
-                                                         num_warmup_steps= 200,
-                                                         num_training_steps= 1000,
+                                                         num_warmup_steps= self.config.train.args.max_steps//10,
+                                                         num_training_steps= self.config.train.args.max_steps,
                                                          num_cycles= 0.5,
                                                          )
+        self.tokenizer = AutoTokenizer.from_pretrained("seyonec/ChemBERTa-zinc-base-v1", use_fast=True)
 
     def forward(self, **inputs):
         batch_size, sequence_length = inputs['input_ids'].shape[:2]
@@ -111,7 +118,7 @@ class SMILES_hybrid(LightningModule):
         logits = self(**batch)
         loss = self.L1Loss(logits, batch['labels'])
 
-        self.log("ST1_GAP(eV) MAE", loss)
+        self.log("valid_loss", loss)
         return loss
 
     def test_step(self, batch, batch_idx) -> dict:
@@ -121,9 +128,9 @@ class SMILES_hybrid(LightningModule):
 
     def test_epoch_end(self, outputs) -> None:
         preds = torch.cat([x for x in outputs]).detach().cpu().numpy()
-        sample = pd.read_csv('./data/sample_submission.csv')
+        sample = pd.read_csv(self.config.data.sample_submission_path)
         sample['ST1_GAP(eV)'] = preds
-        sample.to_csv('./data/SMILES_hybrid_submission.csv',index=False)
+        sample.to_csv(self.config.data.submission_path,index=False)
         
         return
 
@@ -138,16 +145,11 @@ class SMILES_hybrid(LightningModule):
             train_loader (DataLoader): training data loader
             val_loader (DataLoader): validation data loader
         """
-        args = {
-            'gpus': 1,
-            'precision': 16,
-            'accumulate_grad_batches': 1,
-            'val_check_interval': 1.0,
-            'gradient_clip_val': 1.0,
-            'max_steps':3000*5,
+        
+        trainer_options = {
             "logger": WandbLogger(
-                name='SMILES_hybrid',
-                project="Samsung AI Challenge for Scientific Discovery",
+                name=self.config.model.id,
+                project=self.config.project,
             ),
             "callbacks": [
                 LearningRateMonitor(
@@ -155,8 +157,8 @@ class SMILES_hybrid(LightningModule):
                     log_momentum=False,
                 ),
                 ModelCheckpoint(
-                    monitor="ST1_GAP(eV) MAE",
-                    dirpath="./models",
+                    monitor="valid_loss",
+                    dirpath=self.config.train.save_path,
                     filename="model.epoch={epoch:02d}.loss={valid_loss:.3f}",
                     save_top_k=5,
                     mode="min",
@@ -164,7 +166,8 @@ class SMILES_hybrid(LightningModule):
             ],
         }
         trainer = Trainer(
-            **args,
+            **trainer_options,
+            **self.config.train.args,
         )
 
         trainer.fit(

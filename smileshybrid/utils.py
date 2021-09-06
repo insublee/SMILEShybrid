@@ -1,5 +1,7 @@
 from typing import Dict, List, Union
 import torch
+import hydra
+from omegaconf import DictConfig
 
 def load_configs(path: str, name: str) -> DictConfig:
     hydra.initialize(path, name)

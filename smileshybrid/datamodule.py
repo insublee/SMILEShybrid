@@ -6,27 +6,26 @@ from multiprocessing import Pool
 import pandas as pd
 import numpy as np
 
-from rdkit import Chem
+from rdkit import Chem, DataStructs
 from rdkit.Chem import  Draw
-
 from openbabel import pybel
 import deepchem as dc
 
+import torch
+from torch.utils.data import Dataset, DataLoader
 import cv2
 
 class Datamodule(object):
     """
     TODO : config화, 주석달기, 라이브러리화
     """
-    def __init__(self, tokenizer):
+    def __init__(self, tokenizer, config):
         self.tokenizer = tokenizer
-        self.train_batch_size = 40
-        self.dev_batch_size = 40
-        self.test_batch_size = 40
-        self.max_seq_length = 200
+        self.config = config
+
         
         # 0. 캐시 확인
-        cache_file_name='./data/datasets.pkl'
+        cache_file_name=self.config.data.cache_file_name
 
         if os.path.exists(cache_file_name):
             print(f"load cache from {cache_file_name}")
@@ -34,9 +33,9 @@ class Datamodule(object):
             self.datasets = pickle.load(cached_file)
         else:
             # 1. 데이터 로드
-            train = pd.read_csv('./data/train.csv')
-            dev = pd.read_csv("./data/dev.csv")
-            test = pd.read_csv("./data/test.csv")
+            train = pd.read_csv(self.config.data.train_path)
+            dev = pd.read_csv(self.config.data.dev_path)
+            test = pd.read_csv(self.config.data.test_path)
             #train = train.iloc[:2000]
             datasets = {'train':train, 'dev':dev, 'test':test}
 
@@ -52,7 +51,7 @@ class Datamodule(object):
 
 
     def generate_img(self, df, split):
-        folder = f'./data/{split}_imgs'
+        folder = f'../datasets/{split}_imgs'
         file_ = f'{split}_0.png'
         if not os.path.exists(folder):
             print(f"can not find {folder}. make new one")
@@ -63,7 +62,7 @@ class Datamodule(object):
                 m = Chem.MolFromSmiles(smiles)
                 if m != None:
                     img = Draw.MolToImage(m, size=(300,300))
-                    img.save(f'./data/{split}_imgs/{file}.png')
+                    img.save(f'../datasets/{split}_imgs/{file}.png')
 
     def add_feature(self, datasets):
         for split in datasets.keys():
@@ -123,7 +122,7 @@ class Datamodule(object):
         df['graph'] = featurizer.featurize(df['SMILES'])
 
         # 3. input_ids, attention_mask 생성
-        tokenized_series = df.apply(lambda x:self.tokenizer(x['SMILES'], max_length=self.max_seq_length, pad_to_max_length=True, truncation=True), axis=1)
+        tokenized_series = df.apply(lambda x:self.tokenizer(x['SMILES'], max_length=self.config.data.max_seq_length, pad_to_max_length=True, truncation=True), axis=1)
         df['input_ids'] = [i['input_ids'] for i in tokenized_series]
         df['attention_mask'] = [i['attention_mask'] for i in tokenized_series]
         #df.drop(['SMILES'], axis=1)
@@ -136,7 +135,7 @@ class Datamodule(object):
         return df
 
     def sdf_load(self, uid, split):
-        return os.path.join('.','data',f'{split}_sdf',f'{split}_{uid}.sdf')
+        return os.path.join('..','datasets',f'{split}_sdf',f'{split}_{uid}.sdf')
 
     def postprocessing(self, datasets):
         for split in datasets.keys():
@@ -144,13 +143,13 @@ class Datamodule(object):
         return datasets
 
     def train_dataloader(self):
-        return DataLoader(self.datasets['train'], batch_size=self.train_batch_size, shuffle=True, num_workers=4)
+        return DataLoader(self.datasets['train'], batch_size=self.config.train.train_batch_size, shuffle=True, num_workers=4)
 
     def val_dataloader(self):
-        return DataLoader(self.datasets['dev'], batch_size=self.dev_batch_size, num_workers=4)
+        return DataLoader(self.datasets['dev'], batch_size=self.config.train.dev_batch_size, num_workers=4)
 
     def test_dataloader(self):
-        return DataLoader(self.datasets['test'], batch_size=self.test_batch_size, num_workers=4)
+        return DataLoader(self.datasets['test'], batch_size=self.config.train.test_batch_size, num_workers=4)
 
 
 class CustomDataset(Dataset):
@@ -164,7 +163,7 @@ class CustomDataset(Dataset):
         """
         self.split = split
         self.df = df
-        self.imgs = (f'./data/{self.split}_imgs/'+df.uid+'.png').to_numpy()
+        self.imgs = (f'../datasets/{self.split}_imgs/'+df.uid+'.png').to_numpy()
             
     def __len__(self):
         return len(self.df)
