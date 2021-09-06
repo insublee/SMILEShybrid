@@ -11,10 +11,11 @@ pip install -e.
 conda install -c conda-forge openbabel --yes
 ```
 
-## 1. 학습
+## 1. train & prediction
+```
 cd SMILEShybrid/execute
 python train.py -c baseline.yaml
-
+```
 ## 2. 개발
 각자 브랜치 파서 개발후 풀리퀘스트 주세용
 ### 윤표
