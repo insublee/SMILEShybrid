@@ -11,6 +11,7 @@ train: {
   dev_batch_size: 40,
   test_batch_size: 40,
   save_path: '../saved',
+  num_workers: 4
   args: {
     gpus: 1,
     precision: 16,

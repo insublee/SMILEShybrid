@@ -143,13 +143,13 @@ class Datamodule(object):
         return datasets
 
     def train_dataloader(self):
-        return DataLoader(self.datasets['train'], batch_size=self.config.train.train_batch_size, shuffle=True, num_workers=4)
+        return DataLoader(self.datasets['train'], batch_size=self.config.train.train_batch_size, shuffle=True, num_workers=config.train.num_workers)
 
     def val_dataloader(self):
-        return DataLoader(self.datasets['dev'], batch_size=self.config.train.dev_batch_size, num_workers=4)
+        return DataLoader(self.datasets['dev'], batch_size=self.config.train.dev_batch_size, num_workers=self.config.train.num_workers)
 
     def test_dataloader(self):
-        return DataLoader(self.datasets['test'], batch_size=self.config.train.test_batch_size, num_workers=4)
+        return DataLoader(self.datasets['test'], batch_size=self.config.train.test_batch_size, num_workers=config.train.num_workers)
 
 
 class CustomDataset(Dataset):
