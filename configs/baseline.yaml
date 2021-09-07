@@ -11,7 +11,7 @@ train: {
   dev_batch_size: 40,
   test_batch_size: 40,
   save_path: '../saved',
-  num_workers: 4
+  num_workers: 4,
   args: {
     gpus: 1,
     precision: 16,
@@ -24,6 +24,7 @@ train: {
 
 data: {
   max_seq_length: 200,
+  radius: 1,
   cache_file_name: '../datasets/datasets.pkl',
   train_path: "../datasets/train.csv",
   dev_path: "../datasets/dev.csv",

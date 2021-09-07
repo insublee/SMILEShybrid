@@ -19,7 +19,8 @@ if __name__ == "__main__":
         tokenizer=model.tokenizer,
         config=config,
     )
-
+    print("dm.datasets[train].df[graph_adjacency].apply(lambda x:len(x))")
+    print(dm.datasets['train'].df['graph_adjacency'].apply(lambda x:len(x)))
     # 4. start to train
     model.fit(
         train_loader=dm.train_dataloader(),
