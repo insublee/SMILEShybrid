@@ -2,6 +2,7 @@ import os
 import pickle
 from tqdm import tqdm
 from multiprocessing import Pool
+from collections import defaultdict
 
 import pandas as pd
 import numpy as np
@@ -117,20 +118,41 @@ class Datamodule(object):
         df['features'] = pd.Series([i for i in features_df.values])
 
         # 2. 그래프 추가
-        #featurizer = dc.feat.ConvMolFeaturizer()
-        featurizer = dc.feat.MolGraphConvFeaturizer()
-        df['graph'] = featurizer.featurize(df['SMILES'])
+        atom_dict = defaultdict(lambda: len(atom_dict))
+        bond_dict = defaultdict(lambda: len(bond_dict))
+        fingerprint_dict = defaultdict(lambda: len(fingerprint_dict))
+        edge_dict = defaultdict(lambda: len(edge_dict))
+        graph_fingerprints = []
+        graph_adjacency = []
+        graph_molecular_size = []
+        for index, row in tqdm(df.iterrows(), desc=f"{split} : add Graph feature", total=len(df)):
+            mol = Chem.AddHs(Chem.MolFromSmiles(row['SMILES']))
+            atoms = self.create_atoms(mol, atom_dict)
+            molecular_size = len(atoms)
+            i_jbond_dict = self.create_ijbonddict(mol, bond_dict)
+            fingerprints = self.extract_fingerprints(self.config.data.radius, atoms, i_jbond_dict,
+                                                    fingerprint_dict, edge_dict)
+            adjacency = Chem.GetAdjacencyMatrix(mol)
+            graph_fingerprints.append(fingerprints)
+            graph_adjacency.append(adjacency)
+            graph_molecular_size.append(molecular_size)
+
+        df['graph_fingerprints'] = graph_fingerprints
+        df['graph_adjacency'] = graph_adjacency
+        df['graph_molecular_size'] = graph_molecular_size
+        
+
 
         # 3. input_ids, attention_mask 생성
         tokenized_series = df.apply(lambda x:self.tokenizer(x['SMILES'], max_length=self.config.data.max_seq_length, pad_to_max_length=True, truncation=True), axis=1)
         df['input_ids'] = [i['input_ids'] for i in tokenized_series]
         df['attention_mask'] = [i['attention_mask'] for i in tokenized_series]
-        #df.drop(['SMILES'], axis=1)
+        df.drop(['SMILES'], axis=1)
 
         # 4.labels 생성
         if split!='test':
             df['labels'] = df['S1_energy(eV)'] - df['T1_energy(eV)']
-            #df.drop(['S1_energy(eV)', 'T1_energy(eV)'], axis=1)
+            df.drop(['S1_energy(eV)', 'T1_energy(eV)'], axis=1)
 
         return df
 
@@ -143,18 +165,87 @@ class Datamodule(object):
         return datasets
 
     def train_dataloader(self):
-        return DataLoader(self.datasets['train'], batch_size=self.config.train.train_batch_size, shuffle=True, num_workers=4)
+        return DataLoader(self.datasets['train'], batch_size=self.config.train.train_batch_size, shuffle=True, num_workers=self.config.train.num_workers)
 
     def val_dataloader(self):
-        return DataLoader(self.datasets['dev'], batch_size=self.config.train.dev_batch_size, num_workers=4)
+        return DataLoader(self.datasets['dev'], batch_size=self.config.train.dev_batch_size, num_workers=self.config.train.num_workers)
 
     def test_dataloader(self):
-        return DataLoader(self.datasets['test'], batch_size=self.config.train.test_batch_size, num_workers=4)
+        return DataLoader(self.datasets['test'], batch_size=self.config.train.test_batch_size, num_workers=self.config.train.num_workers)
+
+    @staticmethod
+    def create_atoms(mol, atom_dict):
+        """Transform the atom types in a molecule (e.g., H, C, and O)
+        into the indices (e.g., H=0, C=1, and O=2).
+        Note that each atom index considers the aromaticity.
+        """
+        atoms = [a.GetSymbol() for a in mol.GetAtoms()]
+        for a in mol.GetAromaticAtoms():
+            i = a.GetIdx()
+            atoms[i] = (atoms[i], 'aromatic')
+        atoms = [atom_dict[a] for a in atoms]
+        return np.array(atoms)
+
+    @staticmethod
+    def create_ijbonddict(mol, bond_dict):
+        """Create a dictionary, in which each key is a node ID
+        and each value is the tuples of its neighboring node
+        and chemical bond (e.g., single and double) IDs.
+        """
+        i_jbond_dict = defaultdict(lambda: [])
+        for b in mol.GetBonds():
+            i, j = b.GetBeginAtomIdx(), b.GetEndAtomIdx()
+            bond = bond_dict[str(b.GetBondType())]
+            i_jbond_dict[i].append((j, bond))
+            i_jbond_dict[j].append((i, bond))
+        return i_jbond_dict
+
+    @staticmethod
+    def extract_fingerprints(radius, atoms, i_jbond_dict,
+                            fingerprint_dict, edge_dict):
+        """Extract the fingerprints from a molecular graph
+        based on Weisfeiler-Lehman algorithm.
+        """
+
+        if (len(atoms) == 1) or (radius == 0):
+            nodes = [fingerprint_dict[a] for a in atoms]
+
+        else:
+            nodes = atoms
+            i_jedge_dict = i_jbond_dict
+
+            for _ in range(radius):
+
+                """Update each node ID considering its neighboring nodes and edges.
+                The updated node IDs are the fingerprint IDs.
+                """
+                nodes_ = []
+                for i, j_edge in i_jedge_dict.items():
+                    neighbors = [(nodes[j], edge) for j, edge in j_edge]
+                    fingerprint = (nodes[i], tuple(sorted(neighbors)))
+                    nodes_.append(fingerprint_dict[fingerprint])
+
+                """Also update each edge ID considering
+                its two nodes on both sides.
+                """
+                i_jedge_dict_ = defaultdict(lambda: [])
+                for i, j_edge in i_jedge_dict.items():
+                    for j, edge in j_edge:
+                        both_side = tuple(sorted((nodes[i], nodes[j])))
+                        edge = edge_dict[(both_side, edge)]
+                        i_jedge_dict_[i].append((j, edge))
+
+                nodes = nodes_
+                i_jedge_dict = i_jedge_dict_
+
+        return np.array(nodes)
+
+    
 
 
 class CustomDataset(Dataset):
     loader_columns = [
-        'uid', 'input_ids', 'attention_mask', 'features', 'graph', 'labels'
+        'uid', 'input_ids', 'attention_mask', 'features', 'labels'
     ]
 
     def __init__(self, df, tokenizer, split):
@@ -174,8 +265,10 @@ class CustomDataset(Dataset):
         return_dict = {
                 'features' : torch.tensor(self.df.loc[i,'features'], dtype=torch.float32),
                 'img' : torch.tensor(img, dtype=torch.float32),
-                #'graph' : self.df.loc[i, 'graph'],
                 'graph' : torch.tensor(i),
+                'graph_fingerprints' : torch.tensor(self.df.loc[i,'graph_fingerprints'], dtype=torch.float32),
+                'graph_adjacency' : torch.tensor(self.df.loc[i,'graph_adjacency'], dtype=torch.float32),
+                'graph_molecular_size' : torch.tensor(self.df.loc[i,'graph_molecular_size'], dtype=torch.float32),
                 'input_ids' : torch.tensor(self.df.loc[i,'input_ids'], dtype=torch.float32),
                 'attention_mask' : torch.tensor(self.df.loc[i,'attention_mask'], dtype=torch.float32),
         }
