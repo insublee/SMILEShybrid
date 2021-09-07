@@ -118,6 +118,9 @@ class Datamodule(object):
         df['features'] = pd.Series([i for i in features_df.values])
 
         # 2. 그래프 추가
+        featurizer = dc.feat.MolGraphConvFeaturizer()
+        df['graph'] = featurizer.featurize(df['SMILES'])
+        
         atom_dict = defaultdict(lambda: len(atom_dict))
         bond_dict = defaultdict(lambda: len(bond_dict))
         fingerprint_dict = defaultdict(lambda: len(fingerprint_dict))
