@@ -15,6 +15,11 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 import cv2
 
+from rdkit import Chem
+from collections import defaultdict
+
+from GNNpreprocessor import GNNDatmodule
+
 class Datamodule(object):
     """
     TODO : config화, 주석달기, 라이브러리화
@@ -23,7 +28,6 @@ class Datamodule(object):
         self.tokenizer = tokenizer
         self.config = config
 
-        
         # 0. 캐시 확인
         cache_file_name=self.config.data.cache_file_name
 
@@ -121,13 +125,19 @@ class Datamodule(object):
         featurizer = dc.feat.MolGraphConvFeaturizer()
         df['graph'] = featurizer.featurize(df['SMILES'])
 
+
         # 3. input_ids, attention_mask 생성
         tokenized_series = df.apply(lambda x:self.tokenizer(x['SMILES'], max_length=self.config.data.max_seq_length, pad_to_max_length=True, truncation=True), axis=1)
         df['input_ids'] = [i['input_ids'] for i in tokenized_series]
         df['attention_mask'] = [i['attention_mask'] for i in tokenized_series]
         #df.drop(['SMILES'], axis=1)
 
-        # 4.labels 생성
+
+        # 4. MolecularGNN 전처리 데이터 생성
+        # obj = GNNDatmodule()
+        # df[''] = obj()
+
+        # 5.labels 생성
         if split!='test':
             df['labels'] = df['S1_energy(eV)'] - df['T1_energy(eV)']
             #df.drop(['S1_energy(eV)', 'T1_energy(eV)'], axis=1)
@@ -185,3 +195,22 @@ class CustomDataset(Dataset):
             return return_dict
         else:
             return return_dict
+
+
+from transformers import AutoTokenizer
+tokenizer = AutoTokenizer.from_pretrained("seyonec/ChemBERTa-zinc-base-v1", use_fast=True)
+
+from smileshybrid.utils import load_configs
+config = load_configs("../configs/", 'baseline.yaml')
+
+# dm = Datamodule(tokenizer, config=config)
+#
+# # dm.datasets['train'].df
+#
+# from GNNpreprocessor import GNNDatmodule
+# (dataset_train, dataset_dev, N_fingerprints) = GNNDatmodule()()
+#
+# a = [dataset_train, dataset_dev, N_fingerprints]
+# print(a[0])
+
+
