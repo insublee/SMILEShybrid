@@ -90,31 +90,36 @@ class Datamodule(object):
         else:
             split='test'
 
-        # 1. SDF피쳐(~20개)와 PatternFingerprint(~2000개) 피쳐를 합쳐서 'features'로 배정.(TODO : axis=1 drop nan )
-        features=[]
-        not_loaded_lst = []
-        for index, row in tqdm(df.iterrows(), desc=f"{split} : add SDF and PatternFingerprint feature", total=len(df)):
-            sdf = [i for i in pybel.readfile('sdf',self.sdf_load(index, split))]
-            if len(sdf)>0:
-                sdf = sdf[0].calcdesc()
-                sdf_arr = np.array([v for k,v in sdf.items()])
-            else:
-                sdf_arr = np.array([np.nan for i in range(len(sdf_arr))])
-                not_loaded_lst.append(index)
-            
+        # 1-1. PatternFingerprint(~2000개) 'fp_features'로 배정.(TODO : axis=1 drop nan )
+        # 기존 sdf 사용 X
+        fp_features=[]
+        
+        for index, row in tqdm(df.iterrows(), desc=f"{split} : add PatternFingerprint feature", total=len(df)):
             pfp = Chem.MolFromSmiles(row['SMILES'])
             pfp = Chem.rdmolops.PatternFingerprint(pfp)
             pfp_arr = np.zeros((0,))
             DataStructs.ConvertToNumpyArray(pfp, pfp_arr)
+            fp_list.append(pfp_arr)
 
-            features.append(np.concatenate((sdf_arr, pfp_arr), axis=0))
-        
-        if len(not_loaded_lst)!=0:
-            print(f'sample # {not_loaded_lst} not loaded. \n')
-
-        features_df = pd.DataFrame(features).dropna(axis = 1)
+        features_df = pd.DataFrame(fp_list).dropna(axis = 1)
         #print(f"{split} features_df.isna().sum():", features_df.isna().sum())
-        df['features'] = pd.Series([i for i in features_df.values])
+        df['fp_features'] = pd.Series([i for i in features_df.values])
+
+        # 1-2. mordred feature 추가
+        calc = Calculator(descriptors, ignore_3D=False)
+        mordred_df = calc.pandas([Chem.MolFromSmiles(x) for x in df.SMILES])
+
+        mordred_df['Lipinski'] = mordred_df['Lipinski'].apply(lambda x: 1 if x == True else 0)
+        mordred_df['GhoseFilter'] = mordred_df['GhoseFilter'].apply(lambda x: 1 if x == True else 0)
+        
+        # pickle 파일 불러오는 경로를 어떻게 설정해야하는지 모르겠네요... 확인 부탁드리겠습니다 ㅠㅠ (mordred 피처 제거 리스트)
+        with open(path + "drop_mord_feats.pickle","rb") as fr:
+          drop_mord_feats = pickle.load(fr)
+          
+        mordred_df.drop(drop_mord_feats, axis = 1, inplace = True)
+        
+        str_to_float(mordred_df)
+        df['mordred_features'] = pd.Series([i for i in mordred_df.values])
 
         # 2. 그래프 추가
         #featurizer = dc.feat.ConvMolFeaturizer()
