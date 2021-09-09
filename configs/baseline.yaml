@@ -30,5 +30,5 @@ data: {
   dev_path: "../datasets/dev.csv",
   test_path: "../datasets/test.csv",
   sample_submission_path: "../datasets/sample_submission.csv",
-  submission_path: "../datasets/SMILES_hybrid_submission.csv",
+  submission_path: "../result/SMILES_hybrid_submission.csv",
 }
