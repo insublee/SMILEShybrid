@@ -111,7 +111,8 @@ class Datamodule(object):
             features.append(np.concatenate((sdf_arr, pfp_arr), axis=0))
         
         if len(not_loaded_lst)!=0:
-            print(f'sample # {not_loaded_lst} not loaded. \n')
+            print(f'sample # {not_loaded_lst} not loaded. So, delete them!!\n')
+            df.drop(not_loaded_lst)
 
         features_df = pd.DataFrame(features).dropna(axis = 1)
         #print(f"{split} features_df.isna().sum():", features_df.isna().sum())
@@ -268,10 +269,10 @@ class CustomDataset(Dataset):
         return_dict = {
                 'features' : torch.tensor(self.df.loc[i,'features'], dtype=torch.float32),
                 'img' : torch.tensor(img, dtype=torch.float32),
-                'graph' : torch.tensor(i),
-                'graph_fingerprints' : torch.tensor(self.df.loc[i,'graph_fingerprints'], dtype=torch.float32),
-                'graph_adjacency' : torch.tensor(self.df.loc[i,'graph_adjacency'], dtype=torch.float32),
-                'graph_molecular_size' : torch.tensor(self.df.loc[i,'graph_molecular_size'], dtype=torch.float32),
+                #'graph' : torch.tensor(i),
+                #'graph_fingerprints' : torch.tensor(self.df.loc[i,'graph_fingerprints'], dtype=torch.float32),
+                #'graph_adjacency' : torch.tensor(self.df.loc[i,'graph_adjacency'], dtype=torch.float32),
+                #'graph_molecular_size' : torch.tensor(self.df.loc[i,'graph_molecular_size'], dtype=torch.float32),
                 'input_ids' : torch.tensor(self.df.loc[i,'input_ids'], dtype=torch.float32),
                 'attention_mask' : torch.tensor(self.df.loc[i,'attention_mask'], dtype=torch.float32),
         }

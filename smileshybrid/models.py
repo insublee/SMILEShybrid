@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-import wandb
 
 import torch
 from torch import nn
@@ -21,25 +20,31 @@ class CNN_Encoder(nn.Module):
     def __init__(self, embedding_dim):
         super(CNN_Encoder, self).__init__()
         self.model = models.resnet50(pretrained=True)
-        self.dropout = nn.Dropout(0.5)
         self.fc = nn.Linear(1000, embedding_dim)
+        self.bn = nn.BatchNorm1d(embedding_dim)
         
     def forward(self, x):
         x = self.model(x)
-        x = self.dropout(x)
         x = nn.ReLU()(self.fc(x))
+        x = self.bn(x)
         return x
       
 
 
 class MLP(nn.Module):
-    def __init__(self, input_size, output_size):
+    def __init__(self, input_size, embedding_dim):
         super(MLP, self).__init__()
+        h = (input_size+embedding_dim)//3
         self.layers = nn.Sequential(
-            nn.Linear(input_size, (input_size+output_size)//2),
-            nn.Dropout(0.5),
+            nn.Linear(input_size, 2*h),
             nn.ReLU(),
-            nn.Linear((input_size+output_size)//2, output_size)
+            nn.BatchNorm1d(2*h),
+            nn.Linear(2*h, h),
+            nn.ReLU(),
+            nn.BatchNorm1d(h),
+            nn.Linear(h, embedding_dim),
+            nn.ReLU(),
+            nn.BatchNorm1d(embedding_dim)
         )
         
     def forward(self, x):
@@ -155,6 +160,7 @@ class SMILES_hybrid(LightningModule):
         self.transformer = Transformer()
         self.cnn = CNN_Encoder(self.transformer.model.config.hidden_size)
         self.mlp = MLP(2048, self.transformer.model.config.hidden_size)
+        
         #self.gnn = GATModel(mode='regression', n_tasks=1,
         #                    batch_size=10, learning_rate=0.001)
         self.L1Loss = nn.L1Loss()
