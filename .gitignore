@@ -3,5 +3,6 @@ datasets/
 lightning_logs/
 wandb/
 saved/
+result/
 __pycache__/
 .csv
