@@ -139,18 +139,25 @@ class Transformer(nn.Module):
         self.regressor = nn.Linear(self.model.config.hidden_size, 1, bias=False)
         
     def forward(self, input_ids, attention_mask, encoder_hidden_states):
-        if input_ids is not None:
-            batch_size, sequence_length = input_ids.shape[:2]
+        batch_size, _ = input_ids.shape[:2]
+        sequence_lengths = torch.ne(input_ids, self.model.config.pad_token_id).sum(-1) - 1
+
         transformer_outputs  = self.model(input_ids=input_ids,
                                           attention_mask=attention_mask,
                                           encoder_hidden_states=encoder_hidden_states)
         
         hidden_states = transformer_outputs[0]
         logits = self.regressor(hidden_states)
+        pooled_logits = logits[range(batch_size), sequence_lengths]
+        
+        #print("hidden_states.size() : ", hidden_states.size())
+        #logits = self.regressor(hidden_states)
+        #logits = self.regressor(hidden_states[-1])
         #pooled_logits = logits[range(batch_size), sequence_length]
-        pooled_logits = logits.squeeze(-1)[:,-1]
+        #pooled_logits = logits.squeeze(-1)[:,-1]
         
         return pooled_logits
+        #return logits
       
       
 class SMILES_hybrid(LightningModule):
@@ -189,7 +196,7 @@ class SMILES_hybrid(LightningModule):
     def training_step(self, batch, batch_idx) -> dict:
         batch = to(batch, device="gpu")
         logits = self(**batch)
-        loss = self.L1Loss(logits, batch['labels'])
+        loss = self.L1Loss(logits.view(-1), batch['labels'].view(-1))
 
         self.log("train_loss", loss)
         return loss
@@ -197,7 +204,7 @@ class SMILES_hybrid(LightningModule):
     def validation_step(self, batch, batch_idx) -> dict:
         batch = to(batch, device="gpu")
         logits = self(**batch)
-        loss = self.L1Loss(logits, batch['labels'])
+        loss = self.L1Loss(logits.view(-1), batch['labels'].view(-1))
 
         self.log("valid_loss", loss)
         return loss
@@ -250,6 +257,13 @@ class SMILES_hybrid(LightningModule):
             **trainer_options,
             **self.config.train.args,
         )
+
+        #lr_finder = trainer.tuner.lr_find(self, train_dataloaders=train_loader)
+        #new_lr = lr_finder.suggestion()
+        #print("new_lr :", new_lr)
+        #self.optimizer.lr = new_lr
+        
+
 
         trainer.fit(
             model=self,

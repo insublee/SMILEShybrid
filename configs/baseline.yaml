@@ -2,10 +2,11 @@ project: "Samsung AI Challenge for Scientific Discovery"
 
 model: {
   id: "ChemBERTa_decoder(mlp(feature)+resnet50(image), seq)",
+  pad_token_id: 1,
 }
 
 train: {
-  lr: 5e-5,
+  lr: 3e-5,
   weight_decay: 1e-2,
   train_batch_size: 40,
   dev_batch_size: 40,
@@ -18,7 +19,7 @@ train: {
     accumulate_grad_batches: 1,
     val_check_interval: 1.0,
     gradient_clip_val: 1.0,
-    max_steps: 6000,
+    max_steps: 10000,
   }
 }
 

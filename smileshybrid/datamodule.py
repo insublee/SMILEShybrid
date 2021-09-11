@@ -110,13 +110,13 @@ class Datamodule(object):
 
             features.append(np.concatenate((sdf_arr, pfp_arr), axis=0))
         
-        if len(not_loaded_lst)!=0:
-            print(f'sample # {not_loaded_lst} not loaded. So, delete them!!\n')
-            df.drop(not_loaded_lst)
-
         features_df = pd.DataFrame(features).dropna(axis = 1)
         #print(f"{split} features_df.isna().sum():", features_df.isna().sum())
         df['features'] = pd.Series([i for i in features_df.values])
+
+        if len(not_loaded_lst)!=0:
+            print(f'sample # {not_loaded_lst} not loaded. So, delete them!!\n')
+            df.drop(not_loaded_lst)
 
         # 2. 그래프 추가
         featurizer = dc.feat.MolGraphConvFeaturizer()
