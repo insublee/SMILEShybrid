@@ -40,7 +40,7 @@ class Datamodule(object):
             train = pd.read_csv(self.config.data.train_path)
             dev = pd.read_csv(self.config.data.dev_path)
             test = pd.read_csv(self.config.data.test_path)
-            train = train.iloc[:300]
+            # train = train.iloc[:300]
             datasets = {'train':train, 'dev':dev, 'test':test}
 
             # 2. preprocessing
