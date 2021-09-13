@@ -15,11 +15,8 @@ if __name__ == "__main__":
     model = SMILES_hybrid(config=config)
 
     # 3. create datasets
-    dm = Datamodule(
-        tokenizer=model.tokenizer,
-        config=config,
-    )
-
+    dm = Datamodule(tokenizer=model.tokenizer,config=config,)
+    
     # 4. start to train
     model.fit(
         train_loader=dm.train_dataloader(),
