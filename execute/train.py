@@ -12,10 +12,10 @@ if __name__ == "__main__":
     config = load_configs("../configs/", args.c)
 
     # 2. create model
-    model = SMILES_hybrid(config=config)
+    model = SMILES_hybrid(config)
 
     # 3. create datasets
-    dm = Datamodule(tokenizer=model.tokenizer,config=config,)
+    dm = Datamodule(config)
     
     # 4. start to train
     model.fit(
