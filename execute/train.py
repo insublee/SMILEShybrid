@@ -18,10 +18,10 @@ if __name__ == "__main__":
     dm = Datamodule(config)
     
     # 4. start to train
-    #model.fit(
-    #    train_loader=dm.train_dataloader(),
-    #    val_loader=dm.val_dataloader(),
-    #)
+    model.fit(
+        train_loader=dm.train_dataloader(),
+        val_loader=dm.val_dataloader(),
+    )
     
     # 5. predict
     model.test(
