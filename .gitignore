@@ -6,3 +6,4 @@ saved/
 result/
 __pycache__/
 .csv
+.ipynb
