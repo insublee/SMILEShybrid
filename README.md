@@ -33,4 +33,4 @@ models/GNN
 3. 기존에 train_img, dev_img 이런식으로 폴더 각각이였는데 train, dev, test 다 한 폴더에(img) 합쳐놨어요. 없으면 직접 합치기 ㄱㄱ
 4. datasets.pkl 드라이브에 업로드 해놨어요.
 5. 파이토치 라이트닝 모듈 상속받아서 모델 작성하시면 됩니다. init이랑 forward만 구현하시면 뚝딱 돌아갈거에요.
-6. master branch로 초기화 해주세요. 이제 여기서 바꿔나가면 됩니다.
+6. master branch로 초기화 해주세요. 이제 여기서 바꿔나가면 됩니다.(git pull origin main)
