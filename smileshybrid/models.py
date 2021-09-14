@@ -35,7 +35,7 @@ class AbstractModel(LightningModule):
         return loss
 
     def test_step(self, batch, batch_idx) -> dict:
-        batch = to(batch, device="gpu")
+        #batch = to(batch, device="gpu")
         logits = self(**batch)
         return logits
 
